@@ -56,6 +56,7 @@ import io.github.muntashirakon.AppManager.runner.RunnerUtils;
 import io.github.muntashirakon.AppManager.self.SelfPermissions;
 import io.github.muntashirakon.AppManager.servermanager.LocalServer;
 import io.github.muntashirakon.AppManager.servermanager.ServerConfig;
+import io.github.muntashirakon.AppManager.servermanager.ServerStatusChangeReceiver;
 import io.github.muntashirakon.AppManager.servermanager.WifiWaitService;
 import io.github.muntashirakon.AppManager.session.SessionMonitoringService;
 import io.github.muntashirakon.AppManager.users.Owners;
@@ -1078,6 +1079,8 @@ public class Ops {
     static void fallbackToNoRoot(@NonNull Context context) {
         sTransitionLock.lock();
         try {
+            // Clear any pending SERVER_STARTED broadcast
+            ServerStatusChangeReceiver.cancelPendingServerStart();
             if (LocalServices.alive()) {
                 LocalServices.stopServices();
             }

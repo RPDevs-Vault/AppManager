@@ -104,7 +104,16 @@ public class ServerStatusChangeReceiver extends BroadcastReceiver {
                     Log.w(TAG, "Waiting for server...");
                     SystemClock.sleep(100);
                 }
+                if (generation != sServerStartGeneration.get()
+                        || Thread.currentThread().isInterrupted()) {
+                    return;
+                }
                 LocalServer.getInstance();
+                if (generation != sServerStartGeneration.get()
+                        || Thread.currentThread().isInterrupted()) {
+                    LocalServer.die();
+                    return;
+                }
                 LocalServices.bindServicesIfNotAlready();
             } catch (IOException | AdbPairingRequiredException e) {
                 Log.w(TAG, "Failed to start server", e);
@@ -116,5 +125,12 @@ public class ServerStatusChangeReceiver extends BroadcastReceiver {
 
     static boolean hasServerStartTimedOut(long waitStarted, long now) {
         return now - waitStarted >= SERVER_START_TIMEOUT_MILLIS;
+    }
+
+    /**
+     * Cancel callbacks started by older SERVER_STARTED broadcast.
+     */
+    public static void cancelPendingServerStart() {
+        sServerStartGeneration.incrementAndGet();
     }
 }
