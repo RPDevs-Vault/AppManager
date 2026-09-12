@@ -39,8 +39,11 @@ public class LocalServices {
 
     @WorkerThread
     public static void bindServicesIfNotAlready() throws RemoteException {
-        if (!alive()) {
-            bindServices();
+        // Must be one atomic operation.
+        synchronized (sBindLock) {
+            if (!alive()) {
+                bindServices();
+            }
         }
     }
 
