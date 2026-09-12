@@ -107,6 +107,20 @@ public class OpsTest {
         assertFalse(Ops.isDirectRoot());
         assertFalse(ShadowServices.alive);
         assertEquals(Process.myUid(), Ops.getWorkingUid());
+        // Fallback is session-only; the user's explicit mode remains persisted.
+        assertEquals(Ops.MODE_ROOT, Ops.getMode());
+    }
+
+    @Test
+    public void wifiModeFallsBackToTcpOnPreAndroid11() {
+        Ops.setMode(Ops.MODE_ADB_WIFI);
+
+        assertEquals(Ops.STATUS_SUCCESS, Ops.init(mContext, true));
+
+        assertTrue(Ops.isAdb());
+        assertFalse(Ops.isDirectRoot());
+        assertEquals(Ops.MODE_ADB_WIFI, Ops.getMode());
+        assertEquals(Ops.SHELL_UID, Ops.getWorkingUid());
     }
 
     @Test
