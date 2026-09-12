@@ -173,12 +173,12 @@ public class ModeOfOpsPreference extends Fragment {
                     } // fall-through
                 case Ops.STATUS_FAILURE_ADB_NEED_MORE_PERMS:
                     Ops.displayIncompleteUsbDebuggingMessage(requireActivity());
+                    completeModeOperation();
+                    break;
                 case Ops.STATUS_SUCCESS:
                 case Ops.STATUS_FAILURE:
-                    mConnecting = false;
-                    mModeOfOpsAlertDialog.dismiss();
-                    mCurrentMode = Ops.getMode();
-                    updateViews();
+                    completeModeOperation();
+                    break;
             }
         });
         mModel.getCustomCommand0().observe(getViewLifecycleOwner(), customCommand0::setText);
@@ -188,6 +188,13 @@ public class ModeOfOpsPreference extends Fragment {
     public void onStart() {
         super.onStart();
         requireActivity().setTitle(R.string.pref_mode_of_operations);
+    }
+
+    private void completeModeOperation() {
+        mConnecting = false;
+        mModeOfOpsAlertDialog.dismiss();
+        mCurrentMode = Ops.getMode();
+        updateViews();
     }
 
     private void updateViews() {

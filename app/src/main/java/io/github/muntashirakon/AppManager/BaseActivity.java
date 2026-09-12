@@ -186,15 +186,12 @@ public abstract class BaseActivity extends PerProcessActivity {
                 case Ops.STATUS_FAILURE_ADB_NEED_MORE_PERMS:
                     setProgressText(R.string.incomplete_usb_debugging);
                     Ops.displayIncompleteUsbDebuggingMessage(this);
+                    completeAuthentication(savedInstanceState);
+                    break;
                 case Ops.STATUS_SUCCESS:
                 case Ops.STATUS_FAILURE:
-                    Log.d(TAG, "Authentication completed.");
-                    setProgressText(R.string.launching);
-                    mViewModel.setAuthenticating(false);
-                    if (mAlertDialog != null) mAlertDialog.dismiss();
-                    Ops.setAuthenticated(this, true);
-                    onAuthenticated(savedInstanceState);
-                    InternalCacheCleanerService.scheduleAlarm(getApplicationContext());
+                    completeAuthentication(savedInstanceState);
+                    break;
             }
         });
         if (!mViewModel.isAuthenticating()) {
@@ -210,6 +207,18 @@ public abstract class BaseActivity extends PerProcessActivity {
                     .putExtra(KeyStoreActivity.EXTRA_KS, true);
             mKeyStoreActivity.launch(keyStoreIntent);
         }
+    }
+
+    private void completeAuthentication(@Nullable Bundle savedInstanceState) {
+        Log.d(TAG, "Authentication completed.");
+        setProgressText(R.string.launching);
+        mViewModel.setAuthenticating(false);
+        if (mAlertDialog != null) {
+            mAlertDialog.dismiss();
+        }
+        Ops.setAuthenticated(this, true);
+        onAuthenticated(savedInstanceState);
+        InternalCacheCleanerService.scheduleAlarm(getApplicationContext());
     }
 
     private void ensureSecurityAndModeOfOp() {

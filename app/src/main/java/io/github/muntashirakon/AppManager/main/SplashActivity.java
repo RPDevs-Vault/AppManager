@@ -157,14 +157,12 @@ public class SplashActivity extends AppCompatActivity {
                 case Ops.STATUS_FAILURE_ADB_NEED_MORE_PERMS:
                     mStateNameView.setText(R.string.incomplete_usb_debugging);
                     Ops.displayIncompleteUsbDebuggingMessage(this);
+                    completeAuthentication();
+                    break;
                 case Ops.STATUS_SUCCESS:
                 case Ops.STATUS_FAILURE:
-                    Log.d(TAG, "Authentication completed.");
-                    mStateNameView.setText(R.string.launching);
-                    mViewModel.setAuthenticating(false);
-                    Ops.setAuthenticated(this, true);
-                    startActivity(new Intent(this, MainActivity.class));
-                    finish();
+                    completeAuthentication();
+                    break;
             }
         });
         if (!mViewModel.isAuthenticating()) {
@@ -180,6 +178,15 @@ public class SplashActivity extends AppCompatActivity {
                     .putExtra(KeyStoreActivity.EXTRA_KS, true);
             mKeyStoreActivity.launch(keyStoreIntent);
         }
+    }
+
+    private void completeAuthentication() {
+        Log.d(TAG, "Authentication completed.");
+        mStateNameView.setText(R.string.launching);
+        mViewModel.setAuthenticating(false);
+        Ops.setAuthenticated(this, true);
+        startActivity(new Intent(this, MainActivity.class));
+        finish();
     }
 
     private void ensureSecurityAndModeOfOp() {
