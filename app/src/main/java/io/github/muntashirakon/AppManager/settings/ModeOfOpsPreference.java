@@ -104,6 +104,7 @@ public class ModeOfOpsPreference extends Fragment {
         mModeOfOpsAlertDialog = UIUtils.getProgressDialog(requireActivity(), getString(R.string.loading), true);
         mModes = getResources().getStringArray(R.array.modes);
         mCurrentMode = Ops.getMode();
+        mConnecting = mModel.isModeOperationPending();
         mInferredModeView = view.findViewById(R.id.inferred_mode);
         mRemoteServerStatusView = view.findViewById(R.id.remote_server_status);
         mRemoteServicesStatusView = view.findViewById(R.id.remote_services_status);
@@ -118,7 +119,7 @@ public class ModeOfOpsPreference extends Fragment {
                 .setSelection(mCurrentMode)
                 .addDisabledItems(disabledItems)
                 .setPositiveButton(R.string.apply, (dialog, which, selectedItem) -> {
-                    if (selectedItem != null) {
+                    if (selectedItem != null && !mModel.isModeOperationPending()) {
                         mCurrentMode = selectedItem;
                         if (Ops.MODE_ADB_OVER_TCP.equals(mCurrentMode)) {
                             ServerConfig.setAdbPort(ServerConfig.DEFAULT_ADB_PORT);
