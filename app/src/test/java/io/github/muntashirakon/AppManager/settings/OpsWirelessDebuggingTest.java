@@ -20,6 +20,7 @@ import org.robolectric.util.ReflectionHelpers;
 
 import io.github.muntashirakon.test.shadows.ShadowOpsDependencies;
 import io.github.muntashirakon.test.shadows.ShadowOpsDependencies.ShadowAdb;
+import io.github.muntashirakon.test.shadows.ShadowOpsDependencies.ShadowPermissions;
 import io.github.muntashirakon.test.shadows.ShadowOpsDependencies.ShadowServer;
 import io.github.muntashirakon.test.shadows.ShadowOpsDependencies.ShadowServices;
 
@@ -58,6 +59,10 @@ public class OpsWirelessDebuggingTest {
         assertEquals(Ops.STATUS_SUCCESS, Ops.autoConnectWirelessDebugging(mContext));
         assertEquals(Ops.SHELL_UID, Ops.getWorkingUid());
         assertTrue(Ops.isAdb());
+        assertEquals(1, ShadowAdb.wifiChecks);
+        assertEquals(1, ShadowAdb.enableWirelessDebuggingCalls);
+        assertEquals(1, ShadowAdb.latestAdbDaemonCalls);
+        assertEquals(1, ShadowServer.restartCalls);
     }
 
     @Test
@@ -67,6 +72,40 @@ public class OpsWirelessDebuggingTest {
         assertEquals(Ops.STATUS_WIRELESS_DEBUGGING_CHOOSER_REQUIRED, Ops.init(mContext, true));
         assertTrue(Ops.isAdb());
         assertFalse(ShadowServices.alive);
+        assertEquals(1, ShadowAdb.wifiChecks);
+        assertEquals(1, ShadowAdb.enableWirelessDebuggingCalls);
+        assertEquals(0, ShadowAdb.latestAdbDaemonCalls);
+        assertEquals(0, ShadowServer.restartCalls);
+    }
+
+    @Test
+    public void nonForcedStartupReusesServerBeforeCheckingWifi() {
+        ShadowServer.health = true;
+        ShadowAdb.wifiConnected = false;
+
+        assertEquals(Ops.STATUS_SUCCESS, Ops.init(mContext, false));
+        assertTrue(ShadowServices.alive);
+        assertEquals(Ops.SHELL_UID, Ops.getWorkingUid());
+        assertEquals(0, ShadowAdb.wifiChecks);
+        assertEquals(0, ShadowAdb.enableWirelessDebuggingCalls);
+        assertEquals(0, ShadowAdb.latestAdbDaemonCalls);
+        assertEquals(0, ShadowServer.restartCalls);
+    }
+
+    @Test
+    public void forcedWirelessModeReusesServerBeforeCheckingWifi() {
+        ShadowServer.health = true;
+        ShadowAdb.wifiConnected = false;
+
+        assertEquals(Ops.STATUS_SUCCESS, Ops.init(mContext, true));
+        assertEquals(0, ShadowServer.restartCalls);
+        assertTrue(ShadowServices.alive);
+        assertEquals(Ops.SHELL_UID, Ops.getWorkingUid());
+        assertEquals(0, ShadowServices.stopCalls);
+        assertEquals(0, ShadowAdb.wifiChecks);
+        assertEquals(0, ShadowAdb.enableWirelessDebuggingCalls);
+        assertEquals(0, ShadowAdb.latestAdbDaemonCalls);
+        assertEquals(0, ShadowServer.restartCalls);
     }
 
     @Test
@@ -78,6 +117,8 @@ public class OpsWirelessDebuggingTest {
                 Ops.autoConnectWirelessDebugging(mContext));
         assertFalse(Ops.isAdb());
         assertEquals(Process.myUid(), Ops.getWorkingUid());
+        assertEquals(1, ShadowAdb.latestAdbDaemonCalls);
+        assertEquals(1, ShadowServer.restartCalls);
     }
 
     @Test
@@ -92,11 +133,87 @@ public class OpsWirelessDebuggingTest {
     }
 
     @Test
+    public void autoConnectReusesExistingServerWithoutRestartingAdb() {
+        ShadowServer.health = true;
+        ShadowAdb.wifiConnected = false;
+        ShadowServer.restartFailure = true;
+
+        assertEquals(Ops.STATUS_SUCCESS, Ops.autoConnectWirelessDebugging(mContext));
+        assertEquals(0, ShadowServer.restartCalls);
+        assertTrue(Ops.isAdb());
+        assertEquals(Ops.SHELL_UID, Ops.getWorkingUid());
+        assertEquals(0, ShadowAdb.latestAdbDaemonCalls);
+        assertEquals(0, ShadowServer.restartCalls);
+    }
+
+    @Test
+    public void healthyServerWithFailedServiceBindingDoesNotRestartOrStopServer() {
+        ShadowServer.health = true;
+        ShadowServices.bindFailure = true;
+        ShadowAdb.wifiConnected = false;
+
+        assertEquals(Ops.STATUS_FAILURE, Ops.init(mContext, true));
+        assertFalse(ShadowServices.alive);
+        assertEquals(0, ShadowAdb.wifiChecks);
+        assertEquals(0, ShadowAdb.latestAdbDaemonCalls);
+        assertEquals(0, ShadowServer.restartCalls);
+        // The server is persistent.
+        // Only the failed local service binding is cleaned up.
+        assertEquals(1, ShadowServer.healthChecks);
+    }
+
+    @Test
+    public void healthyServerWithIncompletePermissionsReturnsPermissionStatus() {
+        ShadowServer.health = true;
+        ShadowPermissions.adbPermissionGranted = false;
+        ShadowAdb.wifiConnected = false;
+
+        assertEquals(Ops.STATUS_FAILURE_ADB_NEED_MORE_PERMS, Ops.init(mContext, true));
+        assertFalse(ShadowServices.alive);
+        assertEquals(0, ShadowAdb.wifiChecks);
+        assertEquals(0, ShadowAdb.latestAdbDaemonCalls);
+        assertEquals(0, ShadowServer.restartCalls);
+        assertEquals(1, ShadowServer.healthChecks);
+    }
+
+    @Test
+    public void healthyServerIsPreferredOverAdbTcpDiscovery() {
+        ShadowServer.health = true;
+        ShadowAdb.wifiConnected = false;
+        Ops.setMode(Ops.MODE_ADB_OVER_TCP);
+
+        assertEquals(Ops.STATUS_SUCCESS, Ops.init(mContext, true));
+        assertTrue(ShadowServices.alive);
+        assertEquals(0, ShadowAdb.latestAdbDaemonCalls);
+        assertEquals(0, ShadowServer.restartCalls);
+    }
+
+    @Test
+    public void noRootModeDoesNotStopPersistentServer() {
+        ShadowServer.health = true;
+        Ops.setMode(Ops.MODE_NO_ROOT);
+
+        assertEquals(Ops.STATUS_SUCCESS, Ops.init(mContext, true));
+        assertEquals(0, ShadowServer.restartCalls);
+        assertEquals(0, ShadowServer.healthChecks);
+    }
+
+    @Test
     public void manualConnectAfterWirelessChooserReachesAdb() {
         ShadowAdb.wirelessDebuggingEnabled = false;
         assertEquals(Ops.STATUS_WIRELESS_DEBUGGING_CHOOSER_REQUIRED, Ops.init(mContext, true));
 
         assertEquals(Ops.STATUS_SUCCESS, Ops.connectAdb(mContext, 5555, Ops.STATUS_FAILURE));
+        assertTrue(Ops.isAdb());
+        assertEquals(Ops.SHELL_UID, Ops.getWorkingUid());
+    }
+
+    @Test
+    public void manualAdbConnectReusesHealthyServerInsteadOfRestartingIt() {
+        ShadowServer.health = true;
+
+        assertEquals(Ops.STATUS_SUCCESS, Ops.connectAdb(mContext, 5555, Ops.STATUS_FAILURE));
+        assertEquals(0, ShadowServer.restartCalls);
         assertTrue(Ops.isAdb());
         assertEquals(Ops.SHELL_UID, Ops.getWorkingUid());
     }

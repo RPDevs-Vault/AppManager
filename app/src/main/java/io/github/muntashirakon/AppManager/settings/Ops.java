@@ -345,6 +345,10 @@ public class Ops {
                     sIsRoot = sIsSystem = false;
                     sIsAdb = true;
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        if (reuseRunningAdbServer(context)) {
+                            LocalServices.bindServicesIfNotAlready();
+                            return checkRootOrIncompleteUsbDebuggingInAdb(context);
+                        }
                         if (!AdbUtils.isWifiConnected(context)) {
                             throw new Exception("Wifi not enabled.");
                         }
@@ -360,6 +364,10 @@ public class Ops {
                     sDirectRoot = false;
                     sIsRoot = sIsSystem = false;
                     sIsAdb = true;
+                    if (reuseRunningAdbServer(context)) {
+                        LocalServices.bindServicesIfNotAlready();
+                        return checkRootOrIncompleteUsbDebuggingInAdb(context);
+                    }
                     int port = findAdbPort(context, 10, AdbUtils.getAdbPortOrDefault());
                     connectAdbFull(port);
                     return checkRootOrIncompleteUsbDebuggingInAdb(context);
@@ -429,6 +437,22 @@ public class Ops {
             sDirectRoot = false;
             sIsRoot = false;
             // Fall-through, in case we can use other options
+        } else {
+            try {
+                if (reuseRunningAdbServer(context)) {
+                    sIsAdb = true;
+                    sIsSystem = sIsRoot = false;
+                    LocalServices.bindServicesIfNotAlready();
+                    int status = checkRootOrIncompleteUsbDebuggingInAdb(context);
+                    if (status == STATUS_SUCCESS) {
+                        setMode(MODE_ADB_OVER_TCP);
+                        return;
+                    }
+                }
+            } catch (IOException | AdbPairingRequiredException | RemoteException e) {
+                Log.e(TAG, "Could not reuse the persistent ADB server", e);
+            }
+            // Fall-through, again
         }
         // Root was not working/granted, but check for AM service just in case
         if (LocalServices.alive()) {
@@ -533,6 +557,11 @@ public class Ops {
         sIsAdb = true;
         sIsSystem = sIsRoot = false;
         try {
+            if (LocalServer.checkServerHealth(context)) {
+                LocalServer.getInstance();
+                LocalServices.bindServicesIfNotAlready();
+                return checkRootOrIncompleteUsbDebuggingInAdb(context);
+            }
             ServerConfig.setAdbPort(findAdbPort(context, 5, ServerConfig.getAdbPort()));
             LocalServer.restart();
             LocalServices.bindServicesIfNotAlready();
@@ -584,8 +613,23 @@ public class Ops {
     private static void connectAdbFull(int adbPort)
             throws IOException, AdbPairingRequiredException, RemoteException {
         ServerConfig.setAdbPort(adbPort);
-        LocalServer.restart();
+        if (!reuseRunningAdbServer(ContextUtils.getContext())) {
+            LocalServer.restart();
+        }
         LocalServices.bindServicesIfNotAlready();
+    }
+
+    /**
+     * Reuse the persistent ADB server when it is already healthy.
+     */
+    @WorkerThread
+    private static boolean reuseRunningAdbServer(@NonNull Context context)
+            throws IOException, AdbPairingRequiredException {
+        if (!LocalServer.checkServerHealth(context)) {
+            return false;
+        }
+        LocalServer.getInstance();
+        return true;
     }
 
     @UiThread
@@ -1037,9 +1081,7 @@ public class Ops {
             if (LocalServices.alive()) {
                 LocalServices.stopServices();
             }
-            if (LocalServer.checkServerHealth(context)) {
-                ExUtils.exceptionAsIgnored(() -> LocalServer.getInstance().closeBgServer());
-            }
+            // Do not stop the remote server here.
             sDirectRoot = false;
             sIsAdb = sIsSystem = sIsRoot = false;
             setWorkingUid(Process.myUid());

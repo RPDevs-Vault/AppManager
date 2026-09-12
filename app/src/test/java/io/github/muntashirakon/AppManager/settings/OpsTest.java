@@ -26,6 +26,7 @@ import io.github.muntashirakon.test.shadows.ShadowOpsDependencies.ShadowAdb;
 import io.github.muntashirakon.test.shadows.ShadowOpsDependencies.ShadowPermissions;
 import io.github.muntashirakon.test.shadows.ShadowOpsDependencies.ShadowRoot;
 import io.github.muntashirakon.test.shadows.ShadowOpsDependencies.ShadowServices;
+import io.github.muntashirakon.test.shadows.ShadowOpsDependencies.ShadowServer;
 import io.github.muntashirakon.test.shadows.ShadowOpsDependencies.ShadowUsers;
 
 @RunWith(RobolectricTestRunner.class)
@@ -94,6 +95,33 @@ public class OpsTest {
         assertEquals(Ops.MODE_ADB_OVER_TCP, Ops.getMode());
         assertTrue(Ops.isAdb());
         assertEquals(Ops.SHELL_UID, Ops.getWorkingUid());
+    }
+
+    @Test
+    public void forcedAutoModeReusesPersistentAdbServerBeforeAdbDiscovery() {
+        ShadowServer.health = true;
+        ShadowAdb.adbdRunning = false;
+
+        assertEquals(Ops.STATUS_SUCCESS, Ops.init(mContext, true));
+        assertEquals(Ops.MODE_ADB_OVER_TCP, Ops.getMode());
+        assertTrue(Ops.isAdb());
+        assertEquals(Ops.SHELL_UID, Ops.getWorkingUid());
+        assertEquals(0, ShadowAdb.latestAdbDaemonCalls);
+        assertEquals(0, ShadowServer.restartCalls);
+    }
+
+    @Test
+    public void autoModePrefersDirectRootOverPersistentAdbServer() {
+        ShadowRoot.rootGiven = true;
+        ShadowServer.health = true;
+        ShadowServices.bindUid = Ops.ROOT_UID;
+
+        assertEquals(Ops.STATUS_SUCCESS, Ops.init(mContext, true));
+        assertEquals(Ops.MODE_ROOT, Ops.getMode());
+        assertTrue(Ops.isDirectRoot());
+        assertFalse(Ops.isAdb());
+        assertEquals(Ops.ROOT_UID, Ops.getWorkingUid());
+        assertEquals(0, ShadowAdb.latestAdbDaemonCalls);
     }
 
     @Test

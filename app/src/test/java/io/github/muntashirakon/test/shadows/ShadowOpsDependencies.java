@@ -7,6 +7,7 @@ import android.content.Context;
 import android.os.Process;
 import android.os.RemoteException;
 
+import androidx.annotation.Nullable;
 import androidx.core.util.Pair;
 
 import org.robolectric.annotation.Implementation;
@@ -34,6 +35,9 @@ public final class ShadowOpsDependencies {
         ShadowAdb.adbdRunning = true;
         ShadowAdb.wifiConnected = true;
         ShadowAdb.wirelessDebuggingEnabled = true;
+        ShadowAdb.wifiChecks = 0;
+        ShadowAdb.enableWirelessDebuggingCalls = 0;
+        ShadowAdb.latestAdbDaemonCalls = 0;
         ShadowPermissions.internetGranted = true;
         ShadowPermissions.adbPermissionGranted = true;
         ShadowServices.alive = false;
@@ -43,6 +47,8 @@ public final class ShadowOpsDependencies {
         ShadowServices.stopCalls = 0;
         ShadowUsers.remoteUid = Process.myUid();
         ShadowServer.alive = false;
+        ShadowServer.health = false;
+        ShadowServer.healthChecks = 0;
         ShadowServer.restartFailure = false;
         ShadowServer.pairingRequired = false;
         ShadowServer.restartCalls = 0;
@@ -63,6 +69,9 @@ public final class ShadowOpsDependencies {
         public static boolean adbdRunning;
         public static boolean wifiConnected;
         public static boolean wirelessDebuggingEnabled;
+        public static int wifiChecks;
+        public static int enableWirelessDebuggingCalls;
+        public static int latestAdbDaemonCalls;
 
         @Implementation
         public static boolean isAdbdRunning() {
@@ -71,17 +80,20 @@ public final class ShadowOpsDependencies {
 
         @Implementation
         public static boolean isWifiConnected(Context context) {
+            ++wifiChecks;
             return wifiConnected;
         }
 
         @Implementation
         public static boolean enableWirelessDebugging(Context context) {
+            ++enableWirelessDebuggingCalls;
             return wirelessDebuggingEnabled;
         }
 
         @Implementation
         public static Pair<String, Integer> getLatestAdbDaemon(Context context, long timeout,
                                                                 TimeUnit unit) {
+            ++latestAdbDaemonCalls;
             return new Pair<>("127.0.0.1", 5555);
         }
 
@@ -169,9 +181,23 @@ public final class ShadowOpsDependencies {
     @Implements(LocalServer.class)
     public static class ShadowServer {
         public static boolean alive;
+        public static boolean health;
+        public static int healthChecks;
         public static boolean restartFailure;
         public static boolean pairingRequired;
         public static int restartCalls;
+
+        @Implementation
+        public static boolean checkServerHealth(Context context) {
+            ++healthChecks;
+            return health;
+        }
+
+        @Nullable
+        @Implementation
+        public static LocalServer getInstance() {
+            return null;
+        }
 
         @Implementation
         public static boolean alive(Context context) {
