@@ -349,9 +349,8 @@ public class Ops {
                     sDirectRoot = false;
                     sIsRoot = sIsSystem = false;
                     sIsAdb = true;
-                    ServerConfig.setAdbPort(findAdbPort(context, 10, AdbUtils.getAdbPortOrDefault()));
-                    LocalServer.restart();
-                    LocalServices.bindServicesIfNotAlready();
+                    int port = findAdbPort(context, 10, AdbUtils.getAdbPortOrDefault());
+                    connectAdbFull(port);
                     return checkRootOrIncompleteUsbDebuggingInAdb(context);
             }
         } catch (Throwable e) {
@@ -463,9 +462,7 @@ public class Ops {
         }
         sIsAdb = true; // First enable ADB if not already
         try {
-            ServerConfig.setAdbPort(findAdbPort(context, 7, ServerConfig.getAdbPort()));
-            LocalServer.restart();
-            LocalServices.bindServicesIfNotAlready();
+            connectAdbFull(findAdbPort(context, 7, ServerConfig.getAdbPort()));
         } catch (Throwable e) {
             Log.e(TAG, e);
         }
@@ -560,15 +557,24 @@ public class Ops {
         sIsAdb = true;
         sIsSystem = sIsRoot = false;
         try {
-            ServerConfig.setAdbPort(port);
-            LocalServer.restart();
-            LocalServices.bindServicesIfNotAlready();
+            connectAdbFull(port);
             return checkRootOrIncompleteUsbDebuggingInAdb(context);
         } catch (RemoteException | IOException | AdbPairingRequiredException | RuntimeException e) {
             Log.e(TAG, "Could not connect to adbd using port " + port, e);
             fallbackToNoRoot(context);
             return returnCodeOnFailure;
         }
+    }
+
+    /**
+     * Restart/reuse the local server, authenticate the session, and bind both remote services.
+     */
+    @WorkerThread
+    private static void connectAdbFull(int adbPort)
+            throws IOException, AdbPairingRequiredException, RemoteException {
+        ServerConfig.setAdbPort(adbPort);
+        LocalServer.restart();
+        LocalServices.bindServicesIfNotAlready();
     }
 
     @UiThread

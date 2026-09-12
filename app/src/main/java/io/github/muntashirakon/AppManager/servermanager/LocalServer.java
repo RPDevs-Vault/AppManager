@@ -33,6 +33,7 @@ public class LocalServer {
     @SuppressLint("StaticFieldLeak")
     @Nullable
     private static LocalServer sLocalServer;
+    private static final Object sRestartLock = new Object();
 
     @GuardedBy("lockObject")
     @WorkerThread
@@ -178,13 +179,26 @@ public class LocalServer {
     @WorkerThread
     @NoOps(used = true)
     public static void restart() throws IOException, AdbPairingRequiredException {
-        if (sLocalServer != null) {
-            LocalServerManager manager = sLocalServer.mLocalServerManager;
-            manager.closeBgServer();
-            manager.stop();
-            manager.start();
-        } else {
-            getInstance();
+        synchronized (sRestartLock) {
+            if (sLocalServer != null) {
+                LocalServerManager manager = sLocalServer.mLocalServerManager;
+                try {
+                    manager.closeBgServer();
+                } catch (Exception e) {
+                    Log.w("IPC", "Could not stop the previous local server session", e);
+                } finally {
+                    // May throw error if closeBgServer failed.
+                    manager.stop();
+                }
+                try {
+                    manager.start();
+                } catch (IOException | AdbPairingRequiredException e) {
+                    manager.stop();
+                    throw e;
+                }
+            } else {
+                getInstance();
+            }
         }
     }
 }
