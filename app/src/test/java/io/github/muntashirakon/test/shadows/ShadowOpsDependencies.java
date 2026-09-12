@@ -7,10 +7,13 @@ import android.content.Context;
 import android.os.Process;
 import android.os.RemoteException;
 
+import androidx.core.util.Pair;
+
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import io.github.muntashirakon.AppManager.adb.AdbUtils;
 import io.github.muntashirakon.AppManager.ipc.LocalServices;
@@ -29,6 +32,8 @@ public final class ShadowOpsDependencies {
     public static void reset() {
         ShadowRoot.rootGiven = false;
         ShadowAdb.adbdRunning = true;
+        ShadowAdb.wifiConnected = true;
+        ShadowAdb.wirelessDebuggingEnabled = true;
         ShadowPermissions.internetGranted = true;
         ShadowPermissions.adbPermissionGranted = true;
         ShadowServices.alive = false;
@@ -39,6 +44,7 @@ public final class ShadowOpsDependencies {
         ShadowUsers.remoteUid = Process.myUid();
         ShadowServer.alive = false;
         ShadowServer.restartFailure = false;
+        ShadowServer.pairingRequired = false;
         ShadowServer.restartCalls = 0;
     }
 
@@ -55,10 +61,28 @@ public final class ShadowOpsDependencies {
     @Implements(AdbUtils.class)
     public static class ShadowAdb {
         public static boolean adbdRunning;
+        public static boolean wifiConnected;
+        public static boolean wirelessDebuggingEnabled;
 
         @Implementation
         public static boolean isAdbdRunning() {
             return adbdRunning;
+        }
+
+        @Implementation
+        public static boolean isWifiConnected(Context context) {
+            return wifiConnected;
+        }
+
+        @Implementation
+        public static boolean enableWirelessDebugging(Context context) {
+            return wirelessDebuggingEnabled;
+        }
+
+        @Implementation
+        public static Pair<String, Integer> getLatestAdbDaemon(Context context, long timeout,
+                                                                TimeUnit unit) {
+            return new Pair<>("127.0.0.1", 5555);
         }
 
         @Implementation
@@ -146,6 +170,7 @@ public final class ShadowOpsDependencies {
     public static class ShadowServer {
         public static boolean alive;
         public static boolean restartFailure;
+        public static boolean pairingRequired;
         public static int restartCalls;
 
         @Implementation
@@ -156,6 +181,9 @@ public final class ShadowOpsDependencies {
         @Implementation
         public static void restart() throws IOException, AdbPairingRequiredException {
             ++restartCalls;
+            if (pairingRequired) {
+                throw new AdbPairingRequiredException("Pairing required");
+            }
             if (restartFailure) {
                 throw new IOException("Simulated restart failure");
             }
