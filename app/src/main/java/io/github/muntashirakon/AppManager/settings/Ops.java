@@ -24,6 +24,7 @@ import androidx.annotation.GuardedBy;
 import androidx.annotation.IntDef;
 import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.annotation.StringDef;
 import androidx.annotation.UiThread;
@@ -927,7 +928,8 @@ public class Ops {
     }
 
     @UiThread
-    public static void displayIncompleteUsbDebuggingMessage(@NonNull FragmentActivity activity) {
+    public static void displayIncompleteUsbDebuggingMessage(@NonNull FragmentActivity activity,
+                                                            @Nullable Runnable onDismiss) {
         new ScrollableDialogBuilder(activity)
                 .setTitle(R.string.adb_incomplete_usb_debugging_title)
                 .setMessage(R.string.adb_incomplete_usb_debugging_message)
@@ -940,6 +942,9 @@ public class Ops {
                         activity.startActivity(intent);
                     } catch (Throwable ignore) {
                     }
+                })
+                .setOnDismissListener(dialog -> {
+                    if (onDismiss != null) onDismiss.run();
                 })
                 .show();
     }

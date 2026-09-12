@@ -175,8 +175,7 @@ public class ModeOfOpsPreference extends Fragment {
                         return;
                     } // fall-through
                 case Ops.STATUS_FAILURE_ADB_NEED_MORE_PERMS:
-                    Ops.displayIncompleteUsbDebuggingMessage(requireActivity());
-                    completeModeOperation();
+                    Ops.displayIncompleteUsbDebuggingMessage(requireActivity(), this::completeModeOperation);
                     break;
                 case Ops.STATUS_SUCCESS:
                 case Ops.STATUS_FAILURE:

@@ -185,8 +185,8 @@ public abstract class BaseActivity extends PerProcessActivity {
                     } // fall-through
                 case Ops.STATUS_FAILURE_ADB_NEED_MORE_PERMS:
                     setProgressText(R.string.incomplete_usb_debugging);
-                    Ops.displayIncompleteUsbDebuggingMessage(this);
-                    completeAuthentication(savedInstanceState);
+                    Ops.displayIncompleteUsbDebuggingMessage(this,
+                            () -> completeAuthentication(savedInstanceState));
                     break;
                 case Ops.STATUS_SUCCESS:
                 case Ops.STATUS_FAILURE:
