@@ -177,6 +177,22 @@ public class ModeOfOpsPreference extends Fragment {
                 case Ops.STATUS_FAILURE_ADB_NEED_MORE_PERMS:
                     Ops.displayIncompleteUsbDebuggingMessage(requireActivity(), this::completeModeOperation);
                     break;
+                case Ops.STATUS_FAILURE_SERVER_PROTOCOL:
+                    UIUtils.displayLongToast(R.string.server_protocol_mismatch);
+                    completeModeOperation();
+                    break;
+                case Ops.STATUS_FAILURE_SERVER_AUTHENTICATION:
+                    UIUtils.displayLongToast(R.string.server_authentication_failed);
+                    completeModeOperation();
+                    break;
+                case Ops.STATUS_FAILURE_SERVER_UNRESPONSIVE:
+                    UIUtils.displayLongToast(R.string.server_unresponsive);
+                    completeModeOperation();
+                    break;
+                case Ops.STATUS_FAILURE_SERVER_START:
+                    UIUtils.displayLongToast(R.string.server_start_failed);
+                    completeModeOperation();
+                    break;
                 case Ops.STATUS_SUCCESS:
                 case Ops.STATUS_FAILURE:
                     completeModeOperation();

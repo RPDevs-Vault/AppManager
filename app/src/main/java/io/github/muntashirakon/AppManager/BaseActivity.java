@@ -107,6 +107,9 @@ public abstract class BaseActivity extends PerProcessActivity {
         super.onStart();
         if (mViewModel != null && mViewModel.isAuthenticating() && mAlertDialog != null) {
             if (mDisplayLoader) {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
                 mAlertDialog.show();
             } else {
                 mAlertDialog.hide();
@@ -187,6 +190,22 @@ public abstract class BaseActivity extends PerProcessActivity {
                     setProgressText(R.string.incomplete_usb_debugging);
                     Ops.displayIncompleteUsbDebuggingMessage(this,
                             () -> completeAuthentication(savedInstanceState));
+                    break;
+                case Ops.STATUS_FAILURE_SERVER_PROTOCOL:
+                    setProgressText(R.string.server_protocol_mismatch);
+                    completeAuthentication(savedInstanceState);
+                    break;
+                case Ops.STATUS_FAILURE_SERVER_AUTHENTICATION:
+                    setProgressText(R.string.server_authentication_failed);
+                    completeAuthentication(savedInstanceState);
+                    break;
+                case Ops.STATUS_FAILURE_SERVER_UNRESPONSIVE:
+                    setProgressText(R.string.server_unresponsive);
+                    completeAuthentication(savedInstanceState);
+                    break;
+                case Ops.STATUS_FAILURE_SERVER_START:
+                    setProgressText(R.string.server_start_failed);
+                    completeAuthentication(savedInstanceState);
                     break;
                 case Ops.STATUS_SUCCESS:
                 case Ops.STATUS_FAILURE:

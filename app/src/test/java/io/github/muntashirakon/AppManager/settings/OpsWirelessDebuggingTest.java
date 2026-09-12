@@ -109,11 +109,24 @@ public class OpsWirelessDebuggingTest {
     }
 
     @Test
-    public void autoConnectFailureFallsBackToChooser() {
+    public void missingServerAndMissingWifiFailsWithoutOpeningChooser() {
+        ShadowAdb.wifiConnected = false;
+
+        assertEquals(Ops.STATUS_FAILURE, Ops.init(mContext, true));
+        assertFalse(Ops.isAdb());
+        assertFalse(ShadowServices.alive);
+        assertEquals(1, ShadowAdb.wifiChecks);
+        assertEquals(0, ShadowAdb.enableWirelessDebuggingCalls);
+        assertEquals(0, ShadowAdb.latestAdbDaemonCalls);
+        assertEquals(0, ShadowServer.restartCalls);
+    }
+
+    @Test
+    public void autoConnectFailureIsReportedWithoutShowingChooser() {
         ShadowServer.restartFailure = true;
 
         assertEquals(Ops.STATUS_AUTO_CONNECT_WIRELESS_DEBUGGING, Ops.init(mContext, true));
-        assertEquals(Ops.STATUS_WIRELESS_DEBUGGING_CHOOSER_REQUIRED,
+        assertEquals(Ops.STATUS_FAILURE,
                 Ops.autoConnectWirelessDebugging(mContext));
         assertFalse(Ops.isAdb());
         assertEquals(Process.myUid(), Ops.getWorkingUid());

@@ -56,6 +56,7 @@ import io.github.muntashirakon.AppManager.runner.RunnerUtils;
 import io.github.muntashirakon.AppManager.self.SelfPermissions;
 import io.github.muntashirakon.AppManager.servermanager.LocalServer;
 import io.github.muntashirakon.AppManager.servermanager.ServerConfig;
+import io.github.muntashirakon.AppManager.servermanager.ServerConnectionFailure;
 import io.github.muntashirakon.AppManager.servermanager.ServerStatusChangeReceiver;
 import io.github.muntashirakon.AppManager.servermanager.WifiWaitService;
 import io.github.muntashirakon.AppManager.session.SessionMonitoringService;
@@ -98,6 +99,10 @@ public class Ops {
             STATUS_ADB_PAIRING_REQUIRED,
             STATUS_ADB_CONNECT_REQUIRED,
             STATUS_FAILURE_ADB_NEED_MORE_PERMS,
+            STATUS_FAILURE_SERVER_PROTOCOL,
+            STATUS_FAILURE_SERVER_AUTHENTICATION,
+            STATUS_FAILURE_SERVER_UNRESPONSIVE,
+            STATUS_FAILURE_SERVER_START,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface Status {
@@ -110,6 +115,10 @@ public class Ops {
     public static final int STATUS_ADB_PAIRING_REQUIRED = 4;
     public static final int STATUS_ADB_CONNECT_REQUIRED = 5;
     public static final int STATUS_FAILURE_ADB_NEED_MORE_PERMS = 6;
+    public static final int STATUS_FAILURE_SERVER_PROTOCOL = 7;
+    public static final int STATUS_FAILURE_SERVER_AUTHENTICATION = 8;
+    public static final int STATUS_FAILURE_SERVER_UNRESPONSIVE = 9;
+    public static final int STATUS_FAILURE_SERVER_START = 10;
 
     public static int ROOT_UID = 0;
     public static int SHELL_UID = 2000;
@@ -573,7 +582,7 @@ public class Ops {
             if (e instanceof AdbPairingRequiredException) {
                 // Only pairing is required
                 return STATUS_ADB_PAIRING_REQUIRED;
-            } else return STATUS_WIRELESS_DEBUGGING_CHOOSER_REQUIRED;
+            } else return getServerFailureStatus(e, STATUS_FAILURE);
         }
     }
 
@@ -603,7 +612,25 @@ public class Ops {
         } catch (RemoteException | IOException | AdbPairingRequiredException | RuntimeException e) {
             Log.e(TAG, "Could not connect to adbd using port " + port, e);
             fallbackToNoRoot(context);
-            return returnCodeOnFailure;
+            return getServerFailureStatus(e, returnCodeOnFailure);
+        }
+    }
+
+    @Status
+    private static int getServerFailureStatus(@NonNull Throwable failure, @Status int fallback) {
+        if (!(failure instanceof ServerConnectionFailure)) return fallback;
+        switch (((ServerConnectionFailure) failure).getReason()) {
+            case PROTOCOL_MISMATCH:
+                return STATUS_FAILURE_SERVER_PROTOCOL;
+            case AUTHENTICATION:
+                return STATUS_FAILURE_SERVER_AUTHENTICATION;
+            case SERVER_UNRESPONSIVE:
+                return STATUS_FAILURE_SERVER_UNRESPONSIVE;
+            case SERVER_START:
+                return STATUS_FAILURE_SERVER_START;
+            case TRANSPORT:
+            default:
+                return fallback;
         }
     }
 

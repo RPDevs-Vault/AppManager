@@ -1465,6 +1465,10 @@
     <string name="pref_cat_general">General</string>
     <string name="status_remote_server_active">Remote server is active</string>
     <string name="status_remote_server_inactive">Remote server is inactive</string>
+    <string name="server_protocol_mismatch">The remote server is incompatible with this App Manager version. Please restart your device and try again.</string>
+    <string name="server_authentication_failed">The remote server could not be authenticated. Retry the connection.</string>
+    <string name="server_unresponsive">The remote server is not responding. Check ADB or root access, then retry.</string>
+    <string name="server_start_failed">The remote server could not be started. Check ADB or root access, then retry.</string>
     <string name="status_remote_services_active">Remote services are active</string>
     <string name="status_remote_services_inactive">Remote services are inactive</string>
     <string name="status_connecting">Connecting…</string>

@@ -158,6 +158,22 @@ public class SplashActivity extends AppCompatActivity {
                     mStateNameView.setText(R.string.incomplete_usb_debugging);
                     Ops.displayIncompleteUsbDebuggingMessage(this, this::completeAuthentication);
                     break;
+                case Ops.STATUS_FAILURE_SERVER_PROTOCOL:
+                    UIUtils.displayLongToast(R.string.server_protocol_mismatch);
+                    completeAuthentication();
+                    break;
+                case Ops.STATUS_FAILURE_SERVER_AUTHENTICATION:
+                    UIUtils.displayLongToast(R.string.server_authentication_failed);
+                    completeAuthentication();
+                    break;
+                case Ops.STATUS_FAILURE_SERVER_UNRESPONSIVE:
+                    UIUtils.displayLongToast(R.string.server_unresponsive);
+                    completeAuthentication();
+                    break;
+                case Ops.STATUS_FAILURE_SERVER_START:
+                    UIUtils.displayLongToast(R.string.server_start_failed);
+                    completeAuthentication();
+                    break;
                 case Ops.STATUS_SUCCESS:
                 case Ops.STATUS_FAILURE:
                     completeAuthentication();
