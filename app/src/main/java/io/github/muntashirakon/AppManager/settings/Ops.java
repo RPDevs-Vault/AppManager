@@ -12,6 +12,7 @@ import android.content.res.Resources;
 import android.os.Build;
 import android.os.Process;
 import android.os.RemoteException;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.text.Editable;
 import android.text.TextUtils;
@@ -315,9 +316,9 @@ public class Ops {
                     if (!sDirectRoot) {
                         throw new Exception("Root is unavailable.");
                     }
-                    // Disable server first
+                    // Disable remote server first
                     ExUtils.exceptionAsIgnored(() -> {
-                        if (LocalServer.alive(context)) {
+                        if (LocalServer.checkServerHealth(context)) {
                             LocalServer.getInstance().closeBgServer();
                         }
                     });
@@ -381,7 +382,7 @@ public class Ops {
             // Root permission was granted
             // Disable remote server
             ExUtils.exceptionAsIgnored(() -> {
-                if (LocalServer.alive(context)) {
+                if (LocalServer.checkServerHealth(context)) {
                     LocalServer.getInstance().closeBgServer();
                 }
             });
@@ -638,9 +639,7 @@ public class Ops {
                 .setTitle(R.string.adb_pairing_title)
                 .setMessage(R.string.adb_pairing_instruction)
                 .setCancelable(false)
-                .setNeutralButton(R.string.action_manual, (dialog, which) -> {
-                    startAdbPairing(activity, callback);
-                })
+                .setNeutralButton(R.string.action_manual, (dialog, which) -> startAdbPairing(activity, callback))
                 .setNegativeButton(R.string.cancel, (dialog, which) -> callback.connectAdb(-1))
                 .setPositiveButton(R.string.go, (dialog, which) -> {
                     Intent developerOptionsIntent = new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
@@ -672,13 +671,13 @@ public class Ops {
         return Utils.canDisplayNotification(context) && !Utils.isVrHeadset(context);
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     static boolean isMultiWindowPairingAvailable(@NonNull FragmentActivity activity) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && activity.isInMultiWindowMode()) {
+        if (activity.isInMultiWindowMode()) {
             return true;
         }
         PackageManager packageManager = activity.getPackageManager();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
-                && packageManager.hasSystemFeature(PackageManager.FEATURE_FREEFORM_WINDOW_MANAGEMENT)) {
+        if (packageManager.hasSystemFeature(PackageManager.FEATURE_FREEFORM_WINDOW_MANAGEMENT)) {
             return true;
         }
         // Use system resource
@@ -691,8 +690,7 @@ public class Ops {
     @UiThread
     private static void showMultiWindowPairingInstructions(@NonNull FragmentActivity activity,
                                                            @NonNull AdbConnectionInterface callback) {
-        boolean alreadyInMultiWindow = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
-                && activity.isInMultiWindowMode();
+        boolean alreadyInMultiWindow = activity.isInMultiWindowMode();
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(activity)
                 .setTitle(R.string.adb_pairing_split_screen_title)
                 .setMessage(alreadyInMultiWindow
@@ -844,11 +842,13 @@ public class Ops {
         }
     }
 
+    @WorkerThread
+    @NoOps
+    @RequiresApi(Build.VERSION_CODES.R)
     @Status
     private static int pairAdbLocked(@NonNull Context context) {
         AdbConnectionManager.PairingSession session = null;
         try {
-            AdbConnectionManager conn = AdbConnectionManager.getInstance();
             session = AdbConnectionManager.getPairingSession();
             if (session == null) {
                 session = AdbConnectionManager.beginPairingSession();
@@ -882,10 +882,10 @@ public class Ops {
     @Status
     private static int pairAdbInternal(@NonNull Context context,
                                        @NonNull AdbConnectionManager.PairingSession session) {
-        long deadline = android.os.SystemClock.elapsedRealtime() + TimeUnit.MINUTES.toMillis(10);
+        long deadline = SystemClock.elapsedRealtime() + TimeUnit.MINUTES.toMillis(10);
         try {
             while (true) {
-                long remaining = deadline - android.os.SystemClock.elapsedRealtime();
+                long remaining = deadline - SystemClock.elapsedRealtime();
                 if (remaining <= 0) {
                     break;
                 }
@@ -943,8 +943,8 @@ public class Ops {
         sIsRoot = MODE_ROOT.equals(mode);
         sIsAdb = !sIsRoot; // Because the rests are ADB
         sIsSystem = false;
-        if (LocalServer.alive(context)) {
-            // Remote server is running, but local server may not be running
+        if (LocalServer.checkServerHealth(context)) {
+            // A healthy authenticated server can be reused after an app relaunch.
             try {
                 LocalServer.getInstance();
                 LocalServices.bindServicesIfNotAlready();
@@ -1015,7 +1015,7 @@ public class Ops {
             if (LocalServices.alive()) {
                 LocalServices.stopServices();
             }
-            if (LocalServer.alive(context)) {
+            if (LocalServer.checkServerHealth(context)) {
                 ExUtils.exceptionAsIgnored(() -> LocalServer.getInstance().closeBgServer());
             }
             sDirectRoot = false;

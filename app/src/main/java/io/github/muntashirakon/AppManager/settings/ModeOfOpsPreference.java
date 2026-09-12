@@ -33,6 +33,7 @@ import io.github.muntashirakon.AppManager.ipc.LocalServices;
 import io.github.muntashirakon.AppManager.servermanager.LocalServer;
 import io.github.muntashirakon.AppManager.servermanager.ServerConfig;
 import io.github.muntashirakon.AppManager.users.Users;
+import io.github.muntashirakon.AppManager.utils.ThreadUtils;
 import io.github.muntashirakon.AppManager.utils.UIUtils;
 import io.github.muntashirakon.AppManager.utils.Utils;
 import io.github.muntashirakon.dialog.SearchableSingleChoiceDialogBuilder;
@@ -58,6 +59,8 @@ public class ModeOfOpsPreference extends Fragment {
     @Ops.Mode
     private String mCurrentMode;
     private boolean mConnecting;
+    private boolean mServerHealth;
+    private boolean mServerHealthCheckStarted;
     @Nullable
     private ColorStateList mColorActive;
     @Nullable
@@ -194,11 +197,25 @@ public class ModeOfOpsPreference extends Fragment {
         mConnecting = false;
         mModeOfOpsAlertDialog.dismiss();
         mCurrentMode = Ops.getMode();
+        mServerHealthCheckStarted = false;
         updateViews();
     }
 
     private void updateViews() {
-        boolean serverActive = LocalServer.alive(requireContext());
+        boolean serverActive = mServerHealth;
+        if (!mServerHealthCheckStarted) {
+            mServerHealthCheckStarted = true;
+            android.content.Context context = getContext();
+            if (context == null) return;
+            ThreadUtils.postOnBackgroundThread(() -> {
+                boolean healthy = LocalServer.checkServerHealth(context);
+                ThreadUtils.postOnMainThread(() -> {
+                    if (!isAdded()) return;
+                    mServerHealth = healthy;
+                    updateViews();
+                });
+            });
+        }
         boolean serverRequired = requireRemoteServer(mCurrentMode);
         boolean servicesActive = LocalServices.alive();
         boolean servicesRequired = requireRemoteServices(mCurrentMode);

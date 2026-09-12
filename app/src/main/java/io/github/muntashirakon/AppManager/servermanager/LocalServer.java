@@ -65,14 +65,25 @@ public class LocalServer {
 
     @WorkerThread
     @NoOps
-    public static boolean alive(Context context) {
+    public static boolean isLocalPortAvailable(Context context) {
         try (ServerSocket socket = new ServerSocket()) {
             socket.bind(new InetSocketAddress(ServerConfig.getLocalServerHost(context),
                     ServerConfig.getLocalServerPort()), 1);
-            return false;
-        } catch (IOException e) {
             return true;
+        } catch (IOException e) {
+            return false;
         }
+    }
+
+    /**
+     * Checks that the configured endpoint is an App Manager server, rather than merely being
+     * occupied by a listener. The authenticated session is retained because the server treats a
+     * client disconnect as a shutdown request while running in the foreground.
+     */
+    @WorkerThread
+    public static boolean checkServerHealth(Context context) {
+        return LocalServerManager.getInstance(ContextUtils.getDeContext(context))
+                .checkServerHealth();
     }
 
     @NonNull

@@ -48,7 +48,17 @@ public class ServerStatusChangeReceiver extends BroadcastReceiver {
             return;
         }
         Log.d(TAG, "onReceive --> %s %s", action, uidString);
-        int uid = Integer.parseInt(uidString);
+        final int uid;
+        try {
+            uid = Integer.parseInt(uidString);
+            if (uid < 0) {
+                Log.w(TAG, "Invalid UID received from the server: %s", uidString);
+                return;
+            }
+        } catch (NumberFormatException e) {
+            Log.w(TAG, "Malformed UID received from the server: %s", uidString);
+            return;
+        }
 
         switch (action) {
             case ServerActions.ACTION_SERVER_STARTED:
@@ -81,7 +91,7 @@ public class ServerStatusChangeReceiver extends BroadcastReceiver {
         ThreadUtils.postOnBackgroundThread(() -> {
             try {
                 long waitStarted = SystemClock.elapsedRealtime();
-                while (!LocalServer.alive(context)) {
+                while (!LocalServer.checkServerHealth(context)) {
                     if (generation != sServerStartGeneration.get()
                             || Thread.currentThread().isInterrupted()) {
                         return;

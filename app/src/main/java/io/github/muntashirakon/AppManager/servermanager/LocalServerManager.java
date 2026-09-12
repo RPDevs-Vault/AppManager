@@ -120,6 +120,24 @@ class LocalServerManager {
         return mSession != null && mSession.isRunning();
     }
 
+    @WorkerThread
+    boolean checkServerHealth() {
+        synchronized (mLock) {
+            if (mSession != null && mSession.isRunning()) {
+                return true;
+            }
+            closeSession();
+            try {
+                mSession = createSession();
+                return true;
+            } catch (IOException e) {
+                closeSession();
+                Log.d(TAG, "Server health check failed: %s", e.getMessage());
+                return false;
+            }
+        }
+    }
+
     /**
      * Close client session
      */
@@ -182,8 +200,11 @@ class LocalServerManager {
             // Since the server is closed abruptly, this should always produce error
             Log.w(TAG, "closeBgServer: Error", e);
         }
+        // The close command terminates the server-side client loop. Do not retain the old
+        // session while checking whether the server is still accepting connections.
+        closeSession();
         // Check if the server is still active
-        if (LocalServer.alive(mContext)) {
+        if (LocalServer.checkServerHealth(mContext)) {
             // Server still active, need to run killall am_local_server
             try {
                 stopServer();
