@@ -28,34 +28,53 @@ class ServiceConnectionWrapper {
     private IBinder mIBinder;
     @Nullable
     private CountDownLatch mServiceBoundWatcher;
+    @Nullable
+    private final Runnable mDeathCallback;
 
     private class ServiceConnectionImpl implements ServiceConnection {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             Log.d(TAG, "service onServiceConnected: %s", name);
             mIBinder = service;
+            try {
+                service.linkToDeath(() -> {
+                    if (mIBinder == service) {
+                        mIBinder = null;
+                        if (mDeathCallback != null) mDeathCallback.run();
+                    }
+                }, 0);
+            } catch (RemoteException e) {
+                mIBinder = null;
+            }
             onResponseReceived();
         }
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
             Log.d(TAG, "service onServiceDisconnected: %s", name);
-            mIBinder = null;
+            onBinderLost();
             onResponseReceived();
         }
 
         @Override
         public void onBindingDied(ComponentName name) {
             Log.d(TAG, "service onBindingDied: %s", name);
-            mIBinder = null;
+            onBinderLost();
             onResponseReceived();
         }
 
         @Override
         public void onNullBinding(ComponentName name) {
             Log.d(TAG, "service onNullBinding: %s", name);
-            mIBinder = null;
+            onBinderLost();
             onResponseReceived();
+        }
+
+        private void onBinderLost() {
+            if (mIBinder != null) {
+                mIBinder = null;
+                if (mDeathCallback != null) mDeathCallback.run();
+            }
         }
 
         private void onResponseReceived() {
@@ -72,11 +91,21 @@ class ServiceConnectionWrapper {
     private final ServiceConnectionImpl mServiceConnection;
 
     public ServiceConnectionWrapper(@NonNull String pkgName, @NonNull String className) {
-        this(new ComponentName(pkgName, className));
+        this(new ComponentName(pkgName, className), null);
+    }
+
+    public ServiceConnectionWrapper(@NonNull String pkgName, @NonNull String className,
+                                    @Nullable Runnable deathCallback) {
+        this(new ComponentName(pkgName, className), deathCallback);
     }
 
     public ServiceConnectionWrapper(@NonNull ComponentName cn) {
+        this(cn, null);
+    }
+
+    public ServiceConnectionWrapper(@NonNull ComponentName cn, @Nullable Runnable deathCallback) {
         mComponentName = cn;
+        mDeathCallback = deathCallback;
         mServiceConnection = new ServiceConnectionImpl();
     }
 

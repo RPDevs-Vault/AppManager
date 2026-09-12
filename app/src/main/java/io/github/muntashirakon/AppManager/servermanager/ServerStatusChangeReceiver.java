@@ -5,7 +5,6 @@ package io.github.muntashirakon.AppManager.servermanager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemClock;
 
@@ -71,7 +70,7 @@ public class ServerStatusChangeReceiver extends BroadcastReceiver {
                 // Server was stopped
                 sServerStartGeneration.incrementAndGet();
                 LocalServer.die();
-                Ops.setWorkingUid(Process.myUid());
+                LocalServices.stopServices();
                 break;
             case ServerActions.ACTION_SERVER_CONNECTED:
                 // Server was connected with App Manager
@@ -80,7 +79,8 @@ public class ServerStatusChangeReceiver extends BroadcastReceiver {
             case ServerActions.ACTION_SERVER_DISCONNECTED:
                 // Exited from App Manager
                 sServerStartGeneration.incrementAndGet();
-                Ops.setWorkingUid(Process.myUid());
+                LocalServer.die();
+                LocalServices.stopServices();
                 break;
         }
     }

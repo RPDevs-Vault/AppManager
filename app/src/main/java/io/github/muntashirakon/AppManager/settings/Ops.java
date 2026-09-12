@@ -139,6 +139,16 @@ public class Ops {
         sWorkingUid = newUid;
     }
 
+    /**
+     * Clears states after a binder or server disconnect.
+     */
+    @AnyThread
+    public static void invalidateRuntimeBackend() {
+        sDirectRoot = false;
+        sIsAdb = sIsSystem = sIsRoot = false;
+        setWorkingUid(Process.myUid());
+    }
+
     @AnyThread
     public static int getWorkingUidOrRoot() {
         int uid = getWorkingUid();
@@ -954,7 +964,8 @@ public class Ops {
             try {
                 LocalServer.getInstance();
                 LocalServices.bindServicesIfNotAlready();
-            } catch (RemoteException | IOException | AdbPairingRequiredException | RuntimeException e) {
+            } catch (RemoteException | IOException | AdbPairingRequiredException |
+                     RuntimeException e) {
                 Log.e(TAG, e);
                 // fall-through, because the remote service may still be alive
             }

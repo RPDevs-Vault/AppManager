@@ -184,6 +184,7 @@ public class ModeOfOpsPreference extends Fragment {
                     break;
             }
         });
+        LocalServices.state().observe(getViewLifecycleOwner(), ignored -> updateViews());
         mModel.getCustomCommand0().observe(getViewLifecycleOwner(), customCommand0::setText);
     }
 
